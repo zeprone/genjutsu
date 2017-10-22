@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="{{ ms_tools_version }}" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <NinjaExtensionsPath>{{ ninja_extension_dir }}</NinjaExtensionsPath>
+  </PropertyGroup>
+
+  <ItemGroup Label="ProjectConfigurations">
+    {%- for platform in platforms %}
+    {%- for configuration in project.flags_by_configuration %}
+    <ProjectConfiguration Include="{{ configuration }}|{{ platform }}">
+      <Configuration>{{ configuration }}</Configuration>
+      <Platform>{{ platform }}</Platform>
+    </ProjectConfiguration>
+    {% endfor -%}
+    {%- endfor -%}
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{{ '{' }}{{ project.guid }}{{ '}' }}</ProjectGuid>
+    <WindowsTargetPlatformVersion>{{ ms_windows_target_platform }}</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    {%- if use_ninja_extension %}
+    <UseDefaultPropertyPageSchemas Label="Import Settings">false</UseDefaultPropertyPageSchemas>
+    {% endif -%}
+    <PlatformToolset>{{ ms_toolset }}</PlatformToolset>
+  </PropertyGroup>
+  
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
+  <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform"/>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
+
+  {% for platform in platforms -%}
+  {%- for configuration, flags in project.flags_by_configuration.items() -%}
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='{{ configuration }}|{{ platform }}'">
+    <NMakeIncludeSearchPath>{{ ';'.join(flags.include_dirs) }};$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakePreprocessorDefinitions>$(NMakePreprocessorDefinitions);{{ ';'.join(flags.preprocessor_definitions) }}</NMakePreprocessorDefinitions>
+    <OutDir>{{ project.build_dir }}\$(Configuration)\</OutDir>
+    <IntDir>{{ project.build_dir }}\$(Configuration)\</IntDir>
+    <AdditionalOptions>/std:c++latest</AdditionalOptions>
+  </PropertyGroup>
+  {%- endfor -%}
+  {%- endfor %}
+
+  {% if use_ninja_extension -%}
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(NinjaExtensionsPath)ninja.targets"/>
+  </ImportGroup>
+  {% else -%}
+  <PropertyGroup>
+    <NMakeBuildCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" $(Configuration)"</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}"" -t clean</NMakeCleanCommandLine>
+  </PropertyGroup>
+  {%- endif %}
+
+  <ItemGroup>
+    {% for source in project.sources -%}
+    <ClCompile Include="{{ source.path }}">
+      {%- for platform in platforms -%}
+      {%- for configuration, flags in source.flags_by_configuration.items() %}
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='{{ configuration }}|{{ platform }}'">%(PreprocessorDefinitions);{{ ';'.join(flags.preprocessor_definitions) }}</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='{{ configuration }}|{{ platform }}'">{{ ';'.join(flags.include_dirs) }};%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
+      {% endfor -%}
+      {%- endfor -%}
+    </ClCompile>
+    {%- endfor -%}
+  </ItemGroup>
+
+  <ItemGroup>
+    {% for include in project.includes -%}
+    <ClInclude Include="{{ include }}" />
+    {%- endfor -%}
+  </ItemGroup>
+
+</Project>

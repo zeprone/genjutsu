@@ -1,0 +1,45 @@
+CXX=clang++-4.0 --std=gnu++1z -stdlib=libc++
+CFLAGS=$CFLAGS -ferror-limit=1 -ftemplate-backtrace-limit=0 -fcolor-diagnostics
+
+#CXX=ccache distcc-pump $CXX
+
+CPPFLAGS=$CPPFLAGS -D_GLIBCXX_USE_CXX11_ABI=0 -DCRIPPLED
+
+CFLAGS=$CFLAGS -fvisibility=hidden
+
+CFLAGS=$CFLAGS -fPIC
+
+#CFLAGS=$CFLAGS -flto -ffat-lto-objects
+#LDFLAGS=$LDFLAGS -fuse-linker-plugin -flto
+
+# for now, clang can't use archives with LTO -> make link targets depends on list of objects
+# CFLAGS=$CFLAGS -flto=thin
+# LDFLAGS=$LDFLAGS -fuse-linker-plugin -flto=thin
+
+CFLAGS_DEBUG=$CFLAGS -ggdb3 -DDEBUG
+
+CFLAGS_RELEASE=$CFLAGS -march=native -mtune=native -Ofast -DNDEBUG
+
+CFLAGS_PROFILE=$CFLAGS -fno-omit-frame-pointer
+
+CFLAGS_PROFILE_INSTR_RECORD=$CFLAGS_RELEASE -fprofile-generate
+CFLAGS_PROFILE_INSTR_USE=$CFLAGS_RELEASE -fprofile-use
+
+CFLAGS_PROFILE_SAMPLE_RECORD=$CFLAGS_RELEASE -gline-tables-only
+CFLAGS_PROFILE_SAMPLE_USE=$CFLAGS_RELEASE -fprofile-sample-use
+
+CFLAGS_PROFILE_COVERAGE=$CFLAGS_DEBUG --coverage
+
+CFLAGS_SANITIZE_BASE=$CFLAGS -O1 -fno-omit-frame-pointer -fno-optimize-sibling-calls
+CFLAGS_SANITIZE_ADDRESS=$CFLAGS_SANITIZE_BASE -fsanitize=address
+CFLAGS_SANITIZE_THREAD=$CFLAGS_SANITIZE_BASE -fsanitize=thread
+CFLAGS_SANITIZE_MEMORY=$CFLAGS_SANITIZE_BASE -fsanitize=memory
+CFLAGS_SANITIZE_UNDEFINED=$CFLAGS_SANITIZE_BASE -fsanitize=undefined
+
+AR=ar
+ARFLAGS=r
+
+LD=$CXX
+LDFLAGS=$LDFLAGS -Wl,-fuse-ld=gold -Wl,-z,now
+
+LDFLAGS_PROFILE_COVERAGE=$LDFLAGS --coverage

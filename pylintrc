@@ -1,0 +1,16 @@
+[MASTER]
+ignore=_external
+jobs=4
+
+[MESSAGES CONTROL]
+disable=
+
+[REPORTS]
+output-format=html
+
+[BASIC]
+include-naming-hint=yes
+
+[FORMAT]
+max-line-length=238
+expected-line-ending-format=LF

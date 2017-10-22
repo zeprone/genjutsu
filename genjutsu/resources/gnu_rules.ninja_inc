@@ -1,0 +1,25 @@
+pool heavy_action_pool
+  depth=1
+
+
+rule cxx
+  deps=gcc
+  depfile=$out.d
+  command=$CXX $CPPFLAGS $CFLAGS $CXXFLAGS -MMD -MF $out.d -c $in -o $out
+
+rule pch
+  pool=heavy_action_pool
+  depfile=$out.d
+  command=$CXX $CPPFLAGS $CFLAGS $CXXFLAGS -MD -MF $out.d -x c++-header $in -o $out
+
+rule exe
+  pool=heavy_action_pool
+  command=$LD $LDFLAGS $in $LDLIBS -o $out
+
+rule lib
+  pool=heavy_action_pool
+  command=$LD --shared $LDFLAGS $in $LDLIBS -o $out
+
+rule ar
+  pool=heavy_action_pool
+  command=$AR $ARFLAGS $out $in

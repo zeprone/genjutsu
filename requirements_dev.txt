@@ -1,0 +1,5 @@
+--no-index
+--trusted-host enclume
+--find-links http://enclume/wheels
+--process-dependency-links
+--editable .

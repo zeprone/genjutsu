@@ -1,0 +1,11 @@
+{% set pygments_css_custom = ['_static/inkpot.css'] %}
+
+{# Import the theme's layout. #}
+{% extends "!layout.html" %}
+
+{# Add some extra stuff before and use existing with 'super()' call. #}
+{% block footer %}
+  <h4>My footer of awesomeness.</h4>
+  {{ super() }}
+{% endblock %}
+

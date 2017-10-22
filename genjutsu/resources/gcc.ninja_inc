@@ -1,0 +1,23 @@
+CXX=g++ --std=gnu++1z -fpermissive
+
+#CXX=ccache distcc-pump $CXX
+
+CPPFLAGS=$CPPFLAGS -D_GLIBCXX_USE_CXX11_ABI=0
+CPPFLAGS=$CPPFLAGS -DCRIPPLED
+
+CFLAGS=$CFLAGS -fvisibility=hidden
+
+CFLAGS=$CFLAGS -fPIC
+
+CFLAGS=$CFLAGS -flto
+LDFLAGS=$LDFLAGS -flto
+
+CFLAGS_DEBUG=$CFLAGS -ggdb3 -DDEBUG
+
+CFLAGS_RELEASE=$CFLAGS -march=native -mtune=native -Ofast -DNDEBUG
+
+AR=ar
+ARFLAGS=r
+
+LD=$CXX
+LDFLAGS=$LDFLAGS -Wl,-fuse-ld=gold -Wl,-z,now

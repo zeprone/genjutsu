@@ -1,0 +1,34 @@
+# https://svn.boost.org/trac/boost/ticket/11821
+
+CL=cl
+
+CLFLAGS=$CLFLAGS /nologo /errorReport:none
+# try to follow standards
+CLFLAGS=$CLFLAGS /EHsc /Zc:inline /fp:strict /vmg
+#CLFLAGS=$CLFLAGS /Za
+#CLFLAGS=$CLFLAGS /std:c++latest
+CLFLAGS=$CLFLAGS /std:c++14
+# warnings
+CLFLAGS=$CLFLAGS /diagnostics:caret
+#CLFLAGS=$CLFLAGS /analyze
+#CLFLAGS=$CLFLAGS /Wall /WX
+CLFLAGS=$CLFLAGS /wd4355 /wd4514 /wd4548 /wd4571 /wd4668 /wd4710 /wd4820 /wd4987
+# Multithread debug DLL
+CLFLAGS=$CLFLAGS /MDd
+#CLFLAGS=$CLFLAGS /MTd
+# debug / security
+CLFLAGS=$CLFLAGS /FS /GS /Od /Oy- /RTC1 /sdl
+CLFLAGS=$CLFLAGS /MP /ZI
+
+msvc_deps_prefix=Remarqueÿ: inclusion du fichierÿ:
+
+rule cxx
+  deps=msvc
+  command=$CL /c /TP $in $CLINCLUDEFLAGS $CLDEFINEFLAGS $CLFLAGS /Fo$out /Fd"$PDB" /showIncludes
+
+rule make_pch_cxx
+  command=cmd /c for /f "useback tokens=*" %f in ('$in') do echo #include "%~f" > $out
+
+rule pch
+  deps=msvc
+  command=cl /c /TP $in /FI"$PCH" $CLINCLUDEFLAGS $CLDEFINEFLAGS $CLFLAGS /Yc"$PCH" /Fp"$COMPILED_PCH" /Fo$out /Fd"$PDB" /showIncludes

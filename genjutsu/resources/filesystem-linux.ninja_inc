@@ -1,0 +1,2 @@
+rule copy
+  command=cp $in $out

@@ -1,0 +1,4 @@
+# vim: set filetype=python
+
+with env(path='src'):
+    sub_object = Cxx('sub')

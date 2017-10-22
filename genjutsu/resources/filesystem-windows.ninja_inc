@@ -1,0 +1,2 @@
+rule copy
+  command=cmd /c copy $in $out

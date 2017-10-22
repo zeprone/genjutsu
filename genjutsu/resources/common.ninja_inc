@@ -1,0 +1,8 @@
+rule genjutsu
+  generator =
+  pool=console
+  depfile=$out.d
+  command=$GENJUTSU $in
+
+rule ninja
+  command=ninja $NINJAFLAGS $NINJA_TARGET

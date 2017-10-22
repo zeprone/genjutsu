@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ProjectSchemaDefinitions xmlns="http://schemas.microsoft.com/build/2009/properties">
+
+  <Rule Name="ConfigurationNinja" DisplayName="Ninja" PageTemplate="tool" Order="100" Description="Ninja Settings">
+    <Rule.Categories>
+      <Category Name="General" DisplayName="General" Description="General"/>
+      <Category Name="IntelliSense" DisplayName="IntelliSense" Description="IntelliSense"/>
+    </Rule.Categories>
+
+    <Rule.DataSource>
+      <DataSource Persistence="ProjectFile" Label="Ninja"/>
+    </Rule.DataSource>
+
+    <StringProperty Name="NinjaFile" DisplayName="Ninja File" IncludeInCommandLine="false" Description="Specifies Ninja build file." Category="General" Default="$(ProjectPath)build.ninja" Subtype="file"/>
+    <IntProperty Name="NinjaJobs" DisplayName="Ninja Jobs" Description="Specifies the number of parallel build jobs." Category="General"/>
+
+    <StringListProperty Name="IntellisensePreprocessorDefinitions" DisplayName="Preprocessor Definitions" Category="IntelliSense" Switch="D" Description="Specifies the preprocessor defines used by the source files."/>
+    <StringListProperty Name="IntellisenseIncludeSearchPath" DisplayName="Include Search Path" Category="IntelliSense" Switch="I" Description="Specifies the include search path for resolving included files." Subtype="folder"/>
+    <StringProperty Name="IntellisenseAdditionalOptions" DisplayName="Additional Options" Category="IntelliSense" Description="Specifies additional compiler switches to be used by Intellisense when parsing C++ files"/>
+  </Rule>
+
+</ProjectSchemaDefinitions>

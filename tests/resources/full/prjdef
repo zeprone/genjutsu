@@ -1,0 +1,10 @@
+# vim: set filetype=python
+Apply(CxxDef('__USE_PRECOMPILED_HEADER__'))
+
+sub = Prjdef('sub')
+
+with env(path='src'):
+    Apply(IncludeDir('../include'))
+    pch = Pch('precompiled_header')
+    hello_object = Cxx('hello', pch=pch)
+    world = Executable('world', objects=[hello_object, sub.sub_object])
