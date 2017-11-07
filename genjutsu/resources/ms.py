@@ -4,19 +4,21 @@ MS CL genjutsu toolset
 from itertools import chain
 from pathlib import Path
 
-from genjutsu import Alias, Apply, E, Flag, FormatExpression, Inject, Target, Variable
+from genjutsu import Alias, Apply, E, F, Flag, Inject, Target, Variable, escape
 
+
+_RESOURCE_DIR = Path(__file__).resolve().parent
 
 class CompilerToolset:
     @classmethod
     def apply_to_env(cls):  #pylint: disable=missing-docstring
-        Inject(lambda env, flavour: (('include', Path(__file__).resolve().with_name('mscl.ninja_inc')),), key=cls)
+        Inject(lambda env, flavour: f'include {escape(_RESOURCE_DIR / "mscl.ninja_inc")}', key=cls)
         Apply(Flag('CLDEFINEFLAGS', f'/D"{define}"') for define in ('_WIN32', '_DEBUG', 'NOMINMAX', 'CRIPPLED'))
 
     @staticmethod
     def add_rules(globals_):  #pylint: disable=missing-docstring
-        globals_['CxxDef'] = lambda key, value=None: Flag('CLDEFINEFLAGS', (FormatExpression('/D"', key, '"="', value, '"'),) if value else (FormatExpression('/D"', key, '"'),))
-        globals_['IncludeDir'] = lambda path, system=False: Flag('CLINCLUDEFLAGS', (FormatExpression('/I"', Path(path), '"'),))
+        globals_['CxxDef'] = lambda key, value=None: Flag('CLDEFINEFLAGS', (F('/D"', key, '"="', value, '"'),) if value else (F('/D"', key, '"'),))
+        globals_['IncludeDir'] = lambda path, system=False: Flag('CLINCLUDEFLAGS', (F('/I"', Path(path), '"'),))
 
         CxxFlag = globals_['CxxFlag'] = lambda value: Flag('CLFLAGS', value) #pylint:disable=invalid-name
 
@@ -29,7 +31,7 @@ class CompilerToolset:
         def Cxx(cxx, pch=None, *, implicit_inputs=(), flags=(), output_flags=(), quick_build_alias='{source}:{flavour}', **kwargs): #pylint:disable=invalid-name,missing-docstring
             if pch:
                 pch_cxx, pch_obj = pch.inputs[0], pch.outputs[0]
-                flags = tuple(chain(flags, (CxxFlag(FormatExpression('/Yu"', pch_cxx, '"')), CxxFlag(FormatExpression('/FI"', pch_cxx, '"')))))
+                flags = tuple(chain(flags, (CxxFlag(F('/Yu"', pch_cxx, '"')), CxxFlag(F('/FI"', pch_cxx, '"')))))
                 output_flags = tuple(chain(output_flags, (Variable('PCH_OBJ', pch_obj),)))
                 implicit_inputs += (pch_cxx, pch_obj)
             flags = (Variable('PDB', (E.first_class_supenv.build_dir / (E.first_class_supenv.base_dir.name + '.pdb'),)),)
@@ -43,13 +45,13 @@ class CompilerToolset:
 class LinkerToolset:
     @classmethod
     def apply_to_env(cls):  #pylint: disable=missing-docstring
-        Inject(lambda env, flavour: (('include', Path(__file__).resolve().with_name('mslink.ninja_inc')),), key=cls)
+        Inject(lambda env, flavour: f'include {escape(_RESOURCE_DIR / "mslink.ninja_inc")}', key=cls)
 
     @staticmethod
     def add_rules(globals_):  #pylint: disable=missing-docstring
         LinkFlag = globals_['LinkFlag'] = lambda value: Flag('LINKFLAGS', value) #pylint:disable=invalid-name
-        Lib = globals_['Lib'] = lambda lib: LinkFlag('"{}.lib"'.format(lib)) #pylint:disable=invalid-name
-        LibDir = globals_['LibDir'] = lambda path: LinkFlag(FormatExpression('/LIBPATH:"', Path(path), '"')) #pylint:disable=invalid-name
+        Lib = globals_['Lib'] = lambda lib: LinkFlag(f'"{lib}.lib"') #pylint:disable=invalid-name
+        LibDir = globals_['LibDir'] = lambda path: LinkFlag(F('/LIBPATH:"', Path(path), '"')) #pylint:disable=invalid-name
 
         def LinkerTarget(*args, libs=(), implicit_inputs=(), flags=(), output_flags=(), **kwargs): #pylint:disable=invalid-name,missing-docstring
             flags = tuple(chain(flags, *((LibDir(lib.env.base_dir / lib.outputs[0].parent), Lib(lib.outputs[0].stem)) for lib in libs)))

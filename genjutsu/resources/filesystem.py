@@ -4,18 +4,17 @@ Filesystem genjutsu toolset
 from pathlib import Path
 from platform import system
 
-from genjutsu import E, Inject, Target
+from genjutsu import E, Inject, Target, escape
 
+
+_RESOURCE_DIR = Path(__file__).resolve().parent
 
 class Toolset:
-
     @classmethod
     def apply_to_env(cls):
-        def inject(env, flavour):
-            system_name, *_ = system().lower().split('-')
-            root = Path(__file__).parent
-            return (('include', Path(__file__).parent / f'filesystem-{system_name}.ninja_inc'),)
-        Inject(inject, key=cls)
+        system_name, *_ = system().lower().split('-')
+        filename = f'filesystem-{system_name}.ninja_inc'
+        Inject(lambda env, flavour: f'include {escape(_RESOURCE_DIR / filename)}', key=cls)
 
     @staticmethod
     def add_rules(globals_):

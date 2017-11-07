@@ -2,8 +2,12 @@
 GCC genjutsu toolset
 '''
 from pathlib import Path
-from genjutsu import Default, Flavour, Flag, FormatExpression, Inject
+from textwrap import dedent
 
+from genjutsu import Default, Flavour, Flag, Inject, escape
+
+
+_RESOURCE_DIR = Path(__file__).resolve().parent
 
 class Toolset:
     __FLAGS = ('CPPFLAGS', 'CFLAGS', 'CXXFLAGS', 'LDFLAGS')
@@ -11,7 +15,8 @@ class Toolset:
 
     @classmethod
     def apply_to_env(cls):
-        Inject(lambda env, flavour: tuple(('include', Path(__file__).parent / f) for f in ('gcc.ninja_inc', 'gnu_rules.ninja_inc')), key=cls)
+        Inject(lambda env, flavour: dedent(f'''include {escape(_RESOURCE_DIR / "gcc_rules.ninja_inc")}
+                                               include {escape(_RESOURCE_DIR / "gnu_rules.ninja_inc")}'''), key=cls)
         flavours = [Flavour(flavour, flags=[Flag(flags, ('$' + flags + '_' + flavour.upper(),)) for flags in cls.__FLAGS]) for flavour in cls.__FLAVOURS]
         Default(flavours[0])
 

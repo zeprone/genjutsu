@@ -25,10 +25,12 @@ assert sys.version_info > (3, 6)
 
 __version__ = '1.0.0+20170613.0'
 
-TOOLSETS = tuple(filter(None, expandvars(environ.get('GENJUTSU_TOOLSETS', '')).split(pathsep))) or ('clang',)
-LOADED_TOOLSETS = ()
-RESOURCE_DIR = Path(__file__).parent / 'resources'
-RESOURCE_PATH = tuple(chain(expandvars(environ.get('GENJUTSU_RESOURCE_PATH', '')).split(pathsep), (Path.cwd(), RESOURCE_DIR)))
+_TOOLSETS = tuple(filter(None, expandvars(environ.get('GENJUTSU_TOOLSETS', '')).split(pathsep))) or ('clang',)
+_LOADED_TOOLSETS = ()
+_RESOURCE_DIR = Path(__file__).parent / 'resources'
+_RESOURCE_PATH = tuple(chain(expandvars(environ.get('GENJUTSU_RESOURCE_PATH', '')).split(pathsep), (Path.cwd(), _RESOURCE_DIR)))
+
+_BUILD_DIR = None
 
 class FormatExpression(tuple):
     def __new__(cls, *args):
@@ -50,7 +52,7 @@ DEFAULT_FLAVOUR = _Flavour('default', ())
 
 
 def _get_resource_file(filename, search_base_dir=None) -> PurePath:
-    candidates = (Path(search_dir) / filename for search_dir in filter(None, (search_base_dir, *RESOURCE_PATH)))
+    candidates = (Path(search_dir) / filename for search_dir in filter(None, (search_base_dir, *_RESOURCE_PATH)))
     with suppress(StopIteration):
         return next(path.resolve() for path in candidates if path.is_file())
     raise FileNotFoundError(filename)
@@ -126,28 +128,34 @@ class Env(object):
 
     @property
     def prj_file(self):
+        '''Absolute'''
         return self.__prj_file
 
     @property
     def base_dir(self):
+        '''Absolute'''
         return self.prj_file.parent
 
     def get_source_path(self, absolute=True):
         return self.base_dir / self.__source_dir if absolute else self.__source_dir
 
+    '''Relative to base_dir'''
     source_dir = source_path = property(partial(get_source_path, absolute=False))
 
     @property
     def build_dir(self):
+        '''Relative to base_dir'''
         return self.__build_dir
 
     def get_build_path(self, flavour=None, absolute=True):
         return (self.base_dir / self.build_dir if absolute else self.build_dir) / (flavour.name if flavour else '{flavour}')
 
+    '''Relative to base_dir'''
     build_path = property(partial(get_build_path, flavour=None, absolute=False))
 
     @property
     def ninja_file(self):
+        '''Absolute'''
         return (self.base_dir / self.__ninja_file) if self.__ninja_file else None
 
     @property
@@ -230,7 +238,7 @@ class Env(object):
 
     @property
     def all_toolsets(self):
-        return tuple(chain(self.__toolsets, self.supenv.all_toolsets if self.supenv and not self.ninja_file else LOADED_TOOLSETS))
+        return tuple(chain(self.__toolsets, self.supenv.all_toolsets if self.supenv and not self.ninja_file else _LOADED_TOOLSETS))
 
     def add_toolset(self, toolset):
         logging.debug('Add toolset %s', type(toolset))
@@ -334,11 +342,11 @@ def Default(target):  # pylint: disable=invalid-name
     E.add_default(target)
 
 
-def Inject(injection: Callable[[Any], None], *, key=None):  # pylint: disable=invalid-name
+def Inject(injection: Callable[[Env, _Flavour], None], *, key=None):  # pylint: disable=invalid-name
     ''' Injections are extensibility mechanism
 
         args:
-            injection : function taking a jinja Context as parameter, called during generation
+            injection : function taking an Env and a Flavour arg as parameters, called during generation
             key : uniquely defines an injection. A new :class:`Injection` override an existing one sharing the same key 
     '''
     E.add_injection(injection, key=key)
@@ -481,9 +489,9 @@ def resolve(value, *, env=None, flavour=None):
 
 def parse(path):
     # load toolsets now that every symbol they might need to import from the current module is defined
-    global LOADED_TOOLSETS
-    if not LOADED_TOOLSETS:
-        LOADED_TOOLSETS = tuple(_load_toolset(toolset) for toolset in TOOLSETS)
+    global _LOADED_TOOLSETS
+    if not _LOADED_TOOLSETS:
+        _LOADED_TOOLSETS = tuple(_load_toolset(toolset) for toolset in _TOOLSETS)
 
     path = path / 'prjdef' if path.is_dir() else path
     return _Prjdef(path.resolve(), frozenset())
@@ -507,10 +515,13 @@ def get_env_flags(env, flavour):
         return (flag._replace(value=resolve(flag.value, env=env, flavour=flavour)) for flag in flags)
     return merge_flags_iterable(chain(resolve_flags(env.parent_flags), resolve_flags(flavour.flags)))
 
+def escape(value):
+    return str(value).replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
+    
+def resolve_escape_join(value, *, env, flavour):
+    return ' '.join(escape(item) for item in resolve(value, env=env, flavour=flavour))
 
 def _generate_env(env):  # pylint:disable=redefined-outer-name
-    def resolve_escape(value, flavour=None):
-        return ' '.join(str(item).replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:') for item in resolve(value, env=env, flavour=flavour))
             
     def phony_inputs(targets):
         return reduce(frozenset.union, (phony_inputs(target.inputs) if target.rule == 'phony' else frozenset((target,)) for target in targets))
@@ -534,41 +545,41 @@ def _generate_env(env):  # pylint:disable=redefined-outer-name
         build_files = {flavour.name: file_(dir_ / env.ninja_file.name, flavour) for flavour, dir_ in ((flavour, env.get_build_path(flavour)) for flavour in env.all_flavours)} 
         local_files = {flavour.name: file_(dir_ / (f'local_{env.ninja_file.name}'), flavour) for flavour, dir_ in ((flavour, env.get_build_path(flavour)) for flavour in env.all_flavours)}
 
-        main_build_file.write('include {}'.format(resolve_escape(_get_resource_file('common.ninja_inc'))) + '\n')
-        main_build_file.write('\n'.join(OrderedDict(zip(chain.from_iterable((resolve_escape(line, flavour=flavour) for line in chain.from_iterable(injection(env, flavour) for injection in env.all_injections)) for flavour in env.all_flavours), repeat(None))).keys()) + '\n')
-        main_build_file.write('\n'.join('subninja {}'.format(resolve_escape(subenv.base_dir / (f'common_{subenv.ninja_file.name}'))) for subenv in (env, *env.first_class_subenvs)) + '\n')
+        main_build_file.write(f'ninja_required_version=1.8\n')
+        if _BUILD_DIR is not None:
+            main_build_file.write(f'builddir={escape(_BUILD_DIR)}\n')
+        main_build_file.write(f'include {escape(_get_resource_file("common.ninja_inc"))}\n')
+        main_build_file.writelines(f'{line}\n' for line in OrderedDict(zip(chain.from_iterable(injection(env, flavour).splitlines() for injection in env.all_injections for flavour in env.all_flavours), repeat(None))).keys())
+        main_build_file.writelines(f'subninja {escape(subenv.base_dir / f"common_{subenv.ninja_file.name}")}\n' for subenv in (env, *env.first_class_subenvs))
 
         for flavour in env.all_flavours:
-            build_files[flavour.name].write('include {}'.format(resolve_escape(_get_resource_file('common.ninja_inc'))) + '\n')
-            build_files[flavour.name].write('\n'.join(resolve_escape(line, flavour=flavour) for line in chain.from_iterable(injection(env, flavour) for injection in env.all_injections)) + '\n')
-            build_files[flavour.name].write('\n'.join('subninja {}'.format(resolve_escape(subenv.base_dir / (f'common_{subenv.ninja_file.name}'))) for subenv in (env, *env.first_class_subenvs)) + '\n')
+            resolve_escape_join_ = partial(resolve_escape_join, env=env, flavour=flavour)
 
-        for flavour in env.all_flavours:
-            resolve_escape_ = partial(resolve_escape, flavour=flavour)
-
-            local_files[flavour.name].write('\n'.join((f'{flag.name}=' + ((f'${flag.name} ') if flag.append else '') + ' '.join(resolve(flag.value))) for flag in get_env_flags(env, flavour)) + '\n')
+            build_files[flavour.name].write(f'include {escape(_get_resource_file("common.ninja_inc"))}\n')
+            build_files[flavour.name].writelines(f'{line}\n' for line in OrderedDict(zip(chain.from_iterable(injection(env, flavour).splitlines() for injection in env.all_injections), repeat(None))).keys())
+            build_files[flavour.name].writelines(f'subninja {resolve_escape_join_(subenv.base_dir / f"common_{subenv.ninja_file.name}")}\n' for subenv in (env, *env.first_class_subenvs))
+            
+            local_files[flavour.name].writelines(f'{flag.name}={resolve_escape_join_((f"${flag.name}", flag.value) if flag.append else flag.value)}\n' for flag in get_env_flags(env, flavour))
 
             for out_file in (main_build_file, build_files[flavour.name]):
-                out_file.write('\n'.join('subninja {}'.format(resolve_escape_(subenv.get_build_path() / (f'local_{subenv.ninja_file.name}'))) for subenv in (env, *env.first_class_subenvs)) + '\n')
-                out_file.write('build {} : phony {}'.format(flavour.name, resolve_escape_(phony_inputs(subenv.terminal_targets) for subenv in (env, *env.first_class_subenvs))) + '\n')
+                out_file.writelines(f'subninja {resolve_escape_join_(subenv.get_build_path() / f"local_{subenv.ninja_file.name}")}\n' for subenv in (env, *env.first_class_subenvs))
+                out_file.write(f'build {flavour.name} : phony {resolve_escape_join_(phony_inputs(subenv.terminal_targets) for subenv in (env, *env.first_class_subenvs))}\n')
                 if env.all_defaults:
-                    out_file.write('default {}'.format(' '.join(set(resolve_escape_(default) for default in env.all_defaults))) + '\n')
+                    out_file.write(f'default {" ".join(set(resolve_escape_join_(default) for default in env.all_defaults))}\n')
 
-            for output, items in groupby(sorted(((resolve_escape(target.outputs[0], flavour=flavour), target) for target in env.all_targets if target.rule == 'phony'), key=itemgetter(0)), key=itemgetter(0)):
-                build_files[flavour.name].write('build {} : phony {}'.format(output, resolve_escape_(phony_inputs(target for _, target in items))) + '\n')
+            for output, items in groupby(sorted(((resolve_escape_join_(target.outputs[0]), target) for target in env.all_targets if target.rule == 'phony'), key=itemgetter(0)), key=itemgetter(0)):
+                build_files[flavour.name].write(f'build {output} : phony {resolve_escape_join_(phony_inputs(target for _, target in items))}\n')
 
-        for output, items in groupby(sorted(((resolve_escape(target.outputs[0], flavour=flavour), target) for target in env.all_targets if target.rule == 'phony' for flvour in env.all_flavours), key=itemgetter(0)), key=itemgetter(0)):
-            main_build_file.write('build {} : phony {}'.format(output, resolve_escape_(phony_inputs(target for _, target in items))) + '\n')
+        for output, items in groupby(sorted(((resolve_escape_join(target.outputs[0], env=env, flavour=flavour), target, flavour) for target in env.all_targets if target.rule == 'phony' for flavour in env.all_flavours), key=itemgetter(0)), key=itemgetter(0)):
+            main_build_file.write(f'build {output} : phony {" ".join(resolve_escape_join(phony_inputs((target,)), env=env, flavour=flavour) for _, target, flavour in items)}\n')
 
         for target in filter(lambda target: target.rule != 'phony', env.local_targets):
             flavour_dependant = all('{flavour}' in str(output) for output in chain(target.outputs, target.implicit_outputs))
             for flavour in (env.all_flavours if flavour_dependant else (DEFAULT_FLAVOUR,)):
-                resolve_escape_ = partial(resolve_escape, flavour=flavour)
+                resolve_escape_join_ = partial(resolve_escape_join, env=env, flavour=flavour)
                 out_file = local_files[flavour.name] if flavour_dependant else common_build_file
-                out_file.write('build {} : {} {}'.format(resolve_escape_(target.outputs) + ((' | ' + resolve_escape_(target.implicit_outputs)) if target.implicit_outputs else ''),
-                                                         target.rule,
-                                                         resolve_escape_(target.inputs) + ((' | ' + resolve_escape_(target.implicit_inputs)) if target.implicit_inputs else '')) + '\n')
-                out_file.write('\n'.join((f'  {flag.name}=' + ((f'${flag.name} ') if flag.append else '')  + resolve_escape_(flag.value)) for flag in get_target_flags(target, flavour)) + '\n')
+                out_file.write(f'build {resolve_escape_join_(target.outputs)} {("| " + resolve_escape_join_(target.implicit_outputs)) if target.implicit_outputs else ""} : {target.rule} {resolve_escape_join_(target.inputs)} {("| " + resolve_escape_join_(target.implicit_inputs)) if target.implicit_inputs else ""}\n')
+                out_file.writelines(f'  {flag.name}={resolve_escape_join_((f"${flag.name}", flag.value) if flag.append else flag.value)}\n' for flag in get_target_flags(target, flavour))
 
         with file_(env.base_dir / (f'{env.ninja_file.name}.d')) as deps_file:
             deps_file.write(str(env.ninja_file) + ' : ' + ' '.join(str(dep).replace(' ', r'\ ') for dep in sorted(env.dependencies)))
@@ -582,8 +593,12 @@ def generate(env):  # pylint:disable=redefined-outer-name
 def main(**kwargs):
     parser = ArgumentParser()
     parser.add_argument('--logging-ini')
+    parser.add_argument('--builddir', type=Path, default=None, help='ninja builddir variable')
     parser.add_argument('input', type=Path, default=Path.cwd(), help='prjdef file (or directory containing one)')
     args = parser.parse_args(**kwargs)
+
+    global _BUILD_DIR
+    _BUILD_DIR = args.builddir
 
     if args.logging_ini:
         logging.config.fileConfig(args.logging_ini)

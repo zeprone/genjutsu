@@ -42,6 +42,7 @@
     <OutDir>{{ project.build_dir }}\$(Configuration)\</OutDir>
     <IntDir>{{ project.build_dir }}\$(Configuration)\</IntDir>
     <AdditionalOptions>/std:c++latest</AdditionalOptions>
+    <NMakeOutput>{{ project.build_dir }}\$(Configuration)\msbuild_cookie</NMakeOutput>
   </PropertyGroup>
   {%- endfor -%}
   {%- endfor %}
@@ -52,7 +53,7 @@
   </ImportGroup>
   {% else -%}
   <PropertyGroup>
-    <NMakeBuildCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" $(Configuration)"</NMakeBuildCommandLine>
+    <NMakeBuildCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" $(Configuration)_msbuild_cookie"</NMakeBuildCommandLine>
     <NMakeCleanCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}"" -t clean</NMakeCleanCommandLine>
   </PropertyGroup>
   {%- endif %}

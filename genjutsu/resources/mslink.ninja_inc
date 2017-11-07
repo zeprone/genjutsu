@@ -6,15 +6,15 @@ LINKFLAGS=$LINKFLAGS /DYNAMICBASE
 
 rule exe
   rspfile=$out.rsp
-  rspfile_content=$in "$PCH_OBJ"
+  rspfile_content="$PCH_OBJ" $in
   command=$LINK /out:$out /SUBSYSTEM:CONSOLE $LINKFLAGS @$out.rsp
 
 rule lib
   rspfile=$out.rsp
-  rspfile_content=$in "$PCH_OBJ"
+  rspfile_content="$PCH_OBJ" $in
   command=$LINK /lib /out:$out @$out.rsp $LINKFLAGS
 
 rule dll
   rspfile=$out.rsp
-  rspfile_content=$in "$PCH_OBJ"
+  rspfile_content="$PCH_OBJ" $in
   command=$LINK /out:"$DLL" @$out.rsp /IMPLIB:$out /DLL $LINKFLAGS

@@ -1,13 +1,14 @@
 # https://svn.boost.org/trac/boost/ticket/11821
 
 CL=cl
+#CL=clang-cl
 
 CLFLAGS=$CLFLAGS /nologo /errorReport:none
 # try to follow standards
 CLFLAGS=$CLFLAGS /EHsc /Zc:inline /fp:strict /vmg
 #CLFLAGS=$CLFLAGS /Za
-#CLFLAGS=$CLFLAGS /std:c++latest
-CLFLAGS=$CLFLAGS /std:c++14
+CLFLAGS=$CLFLAGS /std:c++latest
+#CLFLAGS=$CLFLAGS /std:c++14
 # warnings
 CLFLAGS=$CLFLAGS /diagnostics:caret
 #CLFLAGS=$CLFLAGS /analyze

@@ -19,12 +19,12 @@ _Flags = namedtuple('_Flags', ('preprocessor_definitions', 'include_dirs'))
 _Cxx = namedtuple('_Cxx', ('path', 'flags_by_configuration'))
 _VCXProj = namedtuple('_VCXProj', ('name', 'path', 'guid', 'sources', 'includes', 'ninja_file', 'flags_by_configuration', 'build_dir'))
 
-RESOURCE_DIR = Path(__file__).parent / 'resources'
+_RESOURCE_DIR = Path(__file__).parent / 'resources'
 
 def vcxproj_files(project_directory):  #pylint: disable=missing-docstring
     def target_file(template_path):  #pylint: disable=missing-docstring
-        return project_directory / str(template_path.relative_to(RESOURCE_DIR / 'vcxproj')).replace('template', project_directory.name)
-    return {target_file(template_path): template_path for template_path in RESOURCE_DIR.glob('vcxproj/**/*') if template_path.is_file()}
+        return project_directory / str(template_path.relative_to(_RESOURCE_DIR / 'vcxproj')).replace('template', project_directory.name)
+    return {target_file(template_path): template_path for template_path in _RESOURCE_DIR.glob('vcxproj/**/*') if template_path.is_file()}
 
 
 def VCXProj(env, *, include_file_patterns=[], **kwargs):  #pylint: disable=invalid-name,missing-docstring,redefined-outer-name
@@ -65,9 +65,11 @@ def vcxproj(prjdef, **kwargs):  #pylint: disable=missing-docstring
 class Toolset:  #pylint: disable=missing-docstring
     @classmethod
     def apply_to_env(cls):  #pylint: disable=missing-docstring
-        from genjutsu import Alias, E, Inject, Target, Variable
-        Inject(lambda env, flavour: (('include', RESOURCE_DIR / 'msbuild.ninja_inc'),), key=cls)
+        from genjutsu import Alias, E, Inject, Target, Variable, resolve_escape_join
+        Inject(lambda env, flavour: f'include {resolve_escape_join(_RESOURCE_DIR / "msbuild.ninja_inc", env=env, flavour=flavour)}', key=(cls, 0))
         if E.ninja_file:
+            Inject(lambda env, flavour: f'build {resolve_escape_join(env.build_path / "msbuild_cookie", env=env, flavour=flavour)} : msbuild_cookie {flavour.name}', key=(cls, 1))
+            Inject(lambda env, flavour: f'build {flavour.name}_msbuild_cookie : phony {resolve_escape_join(env.build_path / "msbuild_cookie", env=env, flavour=flavour)}', key=(cls, 2))
             Alias('msbuild', [Target(inputs=(E.prj_file,),
                                      implicit_inputs=(E.ninja_file,),
                                      outputs=vcxproj_files(E.ninja_file.parent),
@@ -93,8 +95,8 @@ def main(argv=None):  #pylint: disable=missing-docstring
     vcxproj_parser.add_argument('--ms-windows-target-platform', default=environ.get('UCRTVersion', '10.0.14393.0'))
     vcxproj_parser.add_argument('--platform', nargs='*', dest='platforms', default=['Win32'])
     vcxproj_parser.add_argument('--use-ninja-extension', action='store_true', help='only work with VS professionnal')
-    vcxproj_parser.add_argument('--ninja-extension-dir', type=Path, default=RESOURCE_DIR)
-    vcxproj_parser.add_argument('--ninja-exe', default=environ.get('NINJA', 'ninja'), help='ninja executable (NINJA environment variable)')
+    vcxproj_parser.add_argument('--ninja-extension-dir', type=Path, default=_RESOURCE_DIR)
+    vcxproj_parser.add_argument('--ninja-exe', default=environ.get('NINJA', 'ninja.exe'), help='ninja executable (NINJA environment variable)')
     vcxproj_parser.add_argument('--genjutsu-toolsets', default=environ.get('GENJUTSU_TOOLSETS', 'overloads $GENJUTSU_TOOLSETS'))
     vcxproj_parser.add_argument('--genjutsu-resource-path', default=environ.get('GENJUTSU_RESOURCE_PATH', ''), help='overloads $GENJUTSU_RESOURCE_PATH')
     vcxproj_parser.add_argument('--include-file-pattern', nargs='*', dest='include_file_patterns', default=['**/*.h'])

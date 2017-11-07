@@ -3,7 +3,7 @@ Rules for toolsets following the CLI of GCC (namely GCC and Clang)
 '''
 from itertools import chain
 from pathlib import Path
-from genjutsu import Alias, E, Flag, FormatExpression, Target
+from genjutsu import Alias, E, F, Flag, Target
 
 
 def CxxFlag(flag): #pylint: disable=invalid-name,missing-docstring
@@ -11,7 +11,7 @@ def CxxFlag(flag): #pylint: disable=invalid-name,missing-docstring
 
 
 def IncludeDir(path, *, system=False): #pylint: disable=invalid-name,missing-docstring
-    return CxxFlag(FormatExpression('-isystem' if system else '-I', Path(path)))
+    return CxxFlag(F('-isystem' if system else '-I', Path(path)))
 
 
 def LinkFlag(value): #pylint: disable=invalid-name,missing-docstring
@@ -19,15 +19,15 @@ def LinkFlag(value): #pylint: disable=invalid-name,missing-docstring
 
 
 def LibDir(path): #pylint: disable=invalid-name,missing-docstring
-    return LinkFlag(FormatExpression('-L', Path(path)))
+    return LinkFlag(F('-L', Path(path)))
 
 
 def Lib(lib): #pylint: disable=invalid-name,missing-docstring
-    return Flag('LDLIBS', FormatExpression('-l', lib))
+    return Flag('LDLIBS', F('-l', lib))
 
 
 def CxxDef(key, value=None): #pylint: disable=invalid-name,missing-docstring
-    return CxxFlag(FormatExpression('-D', key, '=', value) if value is not None else FormatExpression('-D', key))
+    return CxxFlag(F('-D', key, '=', value) if value is not None else F('-D', key))
 
 
 def Pch(pch, **kwargs): #pylint: disable=invalid-name,missing-docstring
@@ -36,7 +36,7 @@ def Pch(pch, **kwargs): #pylint: disable=invalid-name,missing-docstring
 
 def Cxx(cxx, *, pch=None, implicit_inputs=(), flags=(), quick_build_alias='{source}:{flavour}', **kwargs): #pylint: disable=invalid-name,missing-docstring
     if pch:
-        flags = chain(flags, (CxxFlag(FormatExpression('-include ', pch.inputs[0])),))
+        flags = chain(flags, (CxxFlag(F('-include ', pch.inputs[0])),))
         implicit_inputs = chain(implicit_inputs, pch.outputs)
     result = Target((E.source_path / cxx,), ((E.build_path / cxx).with_suffix('.o'),), 'cxx', implicit_inputs=implicit_inputs, flags=flags, **kwargs)
     if quick_build_alias is not None:

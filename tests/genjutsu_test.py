@@ -8,7 +8,7 @@ import pytest
 import pprofile
 
 ROOT_DIR = Path(__file__).parent.resolve()
-RESOURCE_DIR = ROOT_DIR / 'resources'
+_RESOURCE_DIR = ROOT_DIR / 'resources'
 
 sys.path.append(str(ROOT_DIR))
 from genjutsu import main as genjutsu_main
@@ -33,11 +33,11 @@ def __run_ninja(profiler, tmpdir, base_dir, *args):
     yield run_dir
 
 def test_empty(profiler, tmpdir):
-    with __run_ninja(profiler, tmpdir, RESOURCE_DIR / 'empty') as d:
+    with __run_ninja(profiler, tmpdir, _RESOURCE_DIR / 'empty') as d:
         pass
 
 def test_full(profiler, tmpdir):
-    with __run_ninja(profiler, tmpdir, RESOURCE_DIR / 'full', '--verbose', '--depfile', '--toolset', 'cl') as d:
+    with __run_ninja(profiler, tmpdir, _RESOURCE_DIR / 'full', '--verbose', '--depfile', '--toolset', 'cl') as d:
         ninja_file = Path(d) / 'prjdef.ninja'
         build_file = Path(d) / 'build.ninja'
         build_deps_file = Path(d) / 'prjdef.ninja.d'
