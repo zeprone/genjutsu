@@ -2,4 +2,4 @@ rule msbuild_vcxproj
   command = msbuild_gen vcxproj --genjutsu-toolsets $GENJUTSU_TOOLSETS --genjutsu-resource-path "$GENJUTSU_RESOURCE_PATH" $in
 
 rule msbuild_cookie
-  command = CMD /C COPY /B $out+,, $out
+  command = CMD /C TYPE NUL >> $out & COPY /B $out+,, $out

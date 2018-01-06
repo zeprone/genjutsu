@@ -5,16 +5,22 @@ LINKFLAGS=$LINKFLAGS /DEBUG:FULL
 LINKFLAGS=$LINKFLAGS /DYNAMICBASE
 
 rule exe
+  description=link $out
+  pool=heavy_action_pool
   rspfile=$out.rsp
-  rspfile_content="$PCH_OBJ" $in
+  rspfile_content=$PCH_OBJ $in
   command=$LINK /out:$out /SUBSYSTEM:CONSOLE $LINKFLAGS @$out.rsp
 
 rule lib
+  description=link $out
+  pool=heavy_action_pool
   rspfile=$out.rsp
-  rspfile_content="$PCH_OBJ" $in
+  rspfile_content=$PCH_OBJ $in
   command=$LINK /lib /out:$out @$out.rsp $LINKFLAGS
 
 rule dll
+  description=link $out
+  pool=heavy_action_pool
   rspfile=$out.rsp
-  rspfile_content="$PCH_OBJ" $in
-  command=$LINK /out:"$DLL" @$out.rsp /IMPLIB:$out /DLL $LINKFLAGS
+  rspfile_content=$PCH_OBJ $in
+  command=$LINK /out:$DLL @$out.rsp /IMPLIB:$out /DLL $LINKFLAGS

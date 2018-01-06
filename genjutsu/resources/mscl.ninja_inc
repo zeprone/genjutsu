@@ -1,14 +1,11 @@
-# https://svn.boost.org/trac/boost/ticket/11821
-
-CL=cl
-#CL=clang-cl
+#CL=cl
+CL=clang-cl
 
 CLFLAGS=$CLFLAGS /nologo /errorReport:none
 # try to follow standards
 CLFLAGS=$CLFLAGS /EHsc /Zc:inline /fp:strict /vmg
 #CLFLAGS=$CLFLAGS /Za
 CLFLAGS=$CLFLAGS /std:c++latest
-#CLFLAGS=$CLFLAGS /std:c++14
 # warnings
 CLFLAGS=$CLFLAGS /diagnostics:caret
 #CLFLAGS=$CLFLAGS /analyze
@@ -19,17 +16,26 @@ CLFLAGS=$CLFLAGS /MDd
 #CLFLAGS=$CLFLAGS /MTd
 # debug / security
 CLFLAGS=$CLFLAGS /FS /GS /Od /Oy- /RTC1 /sdl
-CLFLAGS=$CLFLAGS /MP /ZI
+#CLFLAGS=$CLFLAGS /MP
+#CLFLAGS=$CLFLAGS /ZI
+CLFLAGS=$CLFLAGS /Zi
+CLFLAGS=$CLFLAGS -Wno-nonportable-include-path
+CLFLAGS=$CLFLAGS /D"_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING"
+CLFLAGS=$CLFLAGS /D"_CRT_SECURE_NO_WARNINGS"
 
-msvc_deps_prefix=Remarqueÿ: inclusion du fichierÿ:
+#msvc_deps_prefix=Remarqueÿ: inclusion du fichierÿ:
 
 rule cxx
+  description=compile $in
   deps=msvc
-  command=$CL /c /TP $in $CLINCLUDEFLAGS $CLDEFINEFLAGS $CLFLAGS /Fo$out /Fd"$PDB" /showIncludes
-
-rule make_pch_cxx
-  command=cmd /c for /f "useback tokens=*" %f in ('$in') do echo #include "%~f" > $out
+  command=$CL /c /TP $in $CLINCLUDEFLAGS $CLDEFINEFLAGS $CLFLAGS /Fo$out /Fd$PDB /showIncludes
 
 rule pch
+  description=compile PCH $PCH
   deps=msvc
-  command=cl /c /TP $in /FI"$PCH" $CLINCLUDEFLAGS $CLDEFINEFLAGS $CLFLAGS /Yc"$PCH" /Fp"$COMPILED_PCH" /Fo$out /Fd"$PDB" /showIncludes
+#  command=$CL /c /TP $PCH_SOURCE $CLINCLUDEFLAGS $CLDEFINEFLAGS $CLFLAGS /Yc$PCH /Fp$COMPILED_PCH /Fo$out /Fd$PDB /showIncludes
+  command=$CL /c /TP $PCH_SOURCE /FI$PCH $CLINCLUDEFLAGS $CLDEFINEFLAGS $CLFLAGS /Yc$PCH /Fp$COMPILED_PCH /Fo$out /Fd$PDB /showIncludes
+
+rule make_pch_cxx
+  description=create PCH source for $in
+  command=cmd /c for /f "useback tokens=*" %f in ('$in') do echo #include "%~f" > $out

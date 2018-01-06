@@ -1,9 +1,9 @@
-CXX=g++ --std=gnu++1z -fpermissive
+CXX=g++-7 --std=gnu++17 -fpermissive
 
 #CXX=ccache distcc-pump $CXX
 
 CPPFLAGS=$CPPFLAGS -D_GLIBCXX_USE_CXX11_ABI=0
-CPPFLAGS=$CPPFLAGS -DCRIPPLED
+#CPPFLAGS=$CPPFLAGS -DCRIPPLED
 
 CFLAGS=$CFLAGS -fvisibility=hidden
 

@@ -1,4 +1,5 @@
-CXX=clang++-4.0 --std=gnu++1z -stdlib=libc++
+#CXX=clang++ --std=gnu++17 -stdlib=libc++
+CXX=clang++-7 --std=gnu++17
 CFLAGS=$CFLAGS -ferror-limit=1 -ftemplate-backtrace-limit=0 -fcolor-diagnostics
 
 #CXX=ccache distcc-pump $CXX

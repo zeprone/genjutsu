@@ -1,8 +1,13 @@
+pool heavy_action_pool
+  depth=1
+
 rule genjutsu
-  generator =
+  description=genjutsu $in
+  generator=
   pool=console
   depfile=$out.d
-  command=$GENJUTSU $in
+  command="$PYTHON" -m genjutsu $in
 
 rule ninja
+  description=ninja $NINJA_TARGET
   command=ninja $NINJAFLAGS $NINJA_TARGET

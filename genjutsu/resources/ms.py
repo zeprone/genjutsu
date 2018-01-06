@@ -4,7 +4,7 @@ MS CL genjutsu toolset
 from itertools import chain
 from pathlib import Path
 
-from genjutsu import Alias, Apply, E, F, Flag, Inject, Target, Variable, escape
+from genjutsu import Alias, Apply, E, Flag, Inject, Target, Variable, escape
 
 
 _RESOURCE_DIR = Path(__file__).resolve().parent
@@ -17,25 +17,34 @@ class CompilerToolset:
 
     @staticmethod
     def add_rules(globals_):  #pylint: disable=missing-docstring
-        globals_['CxxDef'] = lambda key, value=None: Flag('CLDEFINEFLAGS', (F('/D"', key, '"="', value, '"'),) if value else (F('/D"', key, '"'),))
-        globals_['IncludeDir'] = lambda path, system=False: Flag('CLINCLUDEFLAGS', (F('/I"', Path(path), '"'),))
+        globals_['CxxDef'] = lambda key, value=None: Flag('CLDEFINEFLAGS', ('/D"', key, '"="', value, '"') if value else ('/D"', key, '"'))
+        globals_['IncludeDir'] = lambda path, system=False: Flag('CLINCLUDEFLAGS', ('/I', Path(path)))
 
-        CxxFlag = globals_['CxxFlag'] = lambda value: Flag('CLFLAGS', value) #pylint:disable=invalid-name
+        CxxFlag = globals_['CxxFlag'] = lambda *args: Flag('CLFLAGS', tuple(args)) #pylint:disable=invalid-name
 
-        def Pch(pch, *, flags=(), **kwargs): #pylint:disable=invalid-name,missing-docstring
+        def pdb(env):
+            return env.first_class_supenv.build_dir / (env.first_class_supenv.base_dir.name + '.pdb')
+
+        def Pch(pch, *, flags=(), order_only_inputs=(), implicit_outputs=(), **kwargs): #pylint:disable=invalid-name,missing-docstring
+            pch = pch.env.base_dir / pch.outputs[0] if hasattr(pch, 'outputs') else Path(pch)
             cxx = Target((E.source_path / pch,), ((E.build_path / pch).with_suffix('.cxx'),), 'make_pch_cxx')
-            flags = tuple(chain(flags, (Variable('PCH', (cxx.inputs[0],)), Variable('COMPILED_PCH', ((E.build_path / pch).with_suffix('.pch'),)), Variable('PDB', (E.first_class_supenv.build_dir / (E.first_class_supenv.base_dir.name + '.pdb'),)))))
-            return Target((cxx,), ((E.build_path / pch).with_suffix('.obj'),), 'pch', flags=flags, **kwargs)
+            compiled_pch = (E.build_path / pch).with_suffix('.pch')
+            flags = chain(flags, (Variable('PCH', E.source_path / pch), Variable('PCH_SOURCE', cxx),
+                                  Variable('COMPILED_PCH', compiled_pch),
+                                  Variable('PDB', pdb(E))))
+#            return Target((), (cxx.outputs[0].with_suffix('.obj'),), 'pch', flags=flags, order_only_inputs=chain(order_only_inputs, (cxx,)), implicit_outputs=chain(implicit_outputs, (compiled_pch,)), **kwargs)
+            return Target((), (cxx.outputs[0].with_suffix('.obj'),), 'pch', flags=flags, order_only_inputs=chain(order_only_inputs, (cxx,)), implicit_outputs=implicit_outputs, **kwargs)
         globals_['Pch'] = Pch
 
         def Cxx(cxx, pch=None, *, implicit_inputs=(), flags=(), output_flags=(), quick_build_alias='{source}:{flavour}', **kwargs): #pylint:disable=invalid-name,missing-docstring
             if pch:
-                pch_cxx, pch_obj = pch.inputs[0], pch.outputs[0]
-                flags = tuple(chain(flags, (CxxFlag(F('/Yu"', pch_cxx, '"')), CxxFlag(F('/FI"', pch_cxx, '"')))))
-                output_flags = tuple(chain(output_flags, (Variable('PCH_OBJ', pch_obj),)))
-                implicit_inputs += (pch_cxx, pch_obj)
-            flags = (Variable('PDB', (E.first_class_supenv.build_dir / (E.first_class_supenv.base_dir.name + '.pdb'),)),)
-            result = Target((E.source_path / cxx,), ((E.build_path / cxx).with_suffix('.obj'),), 'cxx', implicit_inputs=implicit_inputs, flags=flags, output_flags=output_flags, **kwargs)
+                pch_cxx, pch_obj = pch.order_only_inputs[0], pch.outputs[0]
+                flags = chain(flags, (CxxFlag('/Yu', pch_cxx), CxxFlag('/FI', pch_cxx)))
+                output_flags = chain(output_flags, (Variable('PCH_OBJ', pch_obj),))
+                implicit_inputs = chain(implicit_inputs, (pch_cxx, pch_obj))
+            flags = chain(flags, (Variable('PDB', pdb(E)),))
+            cxx = cxx.outputs[0] if hasattr(cxx, 'outputs') else E.source_path / cxx
+            result = Target((cxx,), ((E.build_path / cxx).with_suffix('.obj'),), 'cxx', implicit_inputs=implicit_inputs, flags=flags, output_flags=output_flags, **kwargs)
             if quick_build_alias is not None:
                 Alias(quick_build_alias.format(source=E.get_source_path() / cxx, flavour='{flavour}'), (result,))
             return result
@@ -49,20 +58,20 @@ class LinkerToolset:
 
     @staticmethod
     def add_rules(globals_):  #pylint: disable=missing-docstring
-        LinkFlag = globals_['LinkFlag'] = lambda value: Flag('LINKFLAGS', value) #pylint:disable=invalid-name
+        LinkFlag = globals_['LinkFlag'] = lambda *args: Flag('LINKFLAGS', tuple(args)) #pylint:disable=invalid-name
         Lib = globals_['Lib'] = lambda lib: LinkFlag(f'"{lib}.lib"') #pylint:disable=invalid-name
-        LibDir = globals_['LibDir'] = lambda path: LinkFlag(F('/LIBPATH:"', Path(path), '"')) #pylint:disable=invalid-name
+        LibDir = globals_['LibDir'] = lambda path: LinkFlag('/LIBPATH:', Path(path)) #pylint:disable=invalid-name
 
         def LinkerTarget(*args, libs=(), implicit_inputs=(), flags=(), output_flags=(), **kwargs): #pylint:disable=invalid-name,missing-docstring
-            flags = tuple(chain(flags, *((LibDir(lib.env.base_dir / lib.outputs[0].parent), Lib(lib.outputs[0].stem)) for lib in libs)))
+            flags = chain(flags, *((LibDir(lib.env.base_dir / lib.outputs[0].parent), Lib(lib.outputs[0].stem)) for lib in libs))
             return Target(*args, implicit_inputs=chain(implicit_inputs, libs), flags=flags, output_flags=output_flags, **kwargs)
         globals_['LinkerTarget'] = LinkerTarget
 
         globals_['Archive'] = lambda lib, objects, **kwargs: LinkerTarget(objects, (E.build_path / (lib + '.lib'),), 'lib', **kwargs)
 
-        def Dll(lib, objects, *, flags=(), **kwargs): #pylint:disable=invalid-name,missing-docstring
-            flags = tuple(chain(flags, (Variable('DLL', (E.build_path / lib).with_suffix('.dll')),)))
-            return LinkerTarget(objects, (E.build_path / (lib + '.lib'),), 'dll', implicit_outputs=(E.build_path / (lib + '.dll'),), flags=flags, **kwargs)
+        def Dll(lib, objects, *, implicit_inputs=(), flags=(), **kwargs): #pylint:disable=invalid-name,missing-docstring
+            flags = chain(flags, (Variable('DLL', (E.build_path / lib).with_suffix('.dll')),))
+            return LinkerTarget(objects, (E.build_path / (lib + '.lib'),), 'dll', implicit_outputs=chain(implicit_inputs, (E.build_path / (lib + '.dll'),)), flags=flags, **kwargs)
         globals_['SharedObject'] = Dll
 
         globals_['PieExecutable'] = globals_['Executable'] = lambda executable, objects, **kwargs: LinkerTarget(objects, ((E.build_path / executable).with_suffix('.exe'),), 'exe', **kwargs)

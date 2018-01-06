@@ -68,7 +68,7 @@ class Toolset:  #pylint: disable=missing-docstring
         from genjutsu import Alias, E, Inject, Target, Variable, resolve_escape_join
         Inject(lambda env, flavour: f'include {resolve_escape_join(_RESOURCE_DIR / "msbuild.ninja_inc", env=env, flavour=flavour)}', key=(cls, 0))
         if E.ninja_file:
-            Inject(lambda env, flavour: f'build {resolve_escape_join(env.build_path / "msbuild_cookie", env=env, flavour=flavour)} : msbuild_cookie {flavour.name}', key=(cls, 1))
+            Inject(lambda env, flavour: f'build {resolve_escape_join(env.build_path / "msbuild_cookie", env=env, flavour=flavour)} : msbuild_cookie {" ".join(set(resolve_escape_join(default, env=env, flavour=flavour) for default in env.all_defaults) or (flavour.name,))}', key=(cls, 1))
             Inject(lambda env, flavour: f'build {flavour.name}_msbuild_cookie : phony {resolve_escape_join(env.build_path / "msbuild_cookie", env=env, flavour=flavour)}', key=(cls, 2))
             Alias('msbuild', [Target(inputs=(E.prj_file,),
                                      implicit_inputs=(E.ninja_file,),
@@ -82,7 +82,7 @@ class Toolset:  #pylint: disable=missing-docstring
 
 
 def main(argv=None):  #pylint: disable=missing-docstring
-    argv = argv or sys.argv[1:] + [arg for arg in environ.get('MSBUILD_GEN_VCPROJX_OPTS', '').split(' ') if arg]
+    argv = argv or sys.argv[1:] + environ.get('MSBUILD_GEN_VCPROJX_OPTS', '').split()
 
     logging.basicConfig(level=logging.INFO)
 
@@ -92,8 +92,9 @@ def main(argv=None):  #pylint: disable=missing-docstring
     vcxproj_parser.set_defaults(callback=vcxproj)
     vcxproj_parser.add_argument('--ms-tools-version', default=environ.get('VisualStudioVersion', '15.0'))
     vcxproj_parser.add_argument('--ms-toolset', default='v141', help='will determine standard compiler include/lib directories') #v141_clang_c2
-    vcxproj_parser.add_argument('--ms-windows-target-platform', default=environ.get('UCRTVersion', '10.0.14393.0'))
-    vcxproj_parser.add_argument('--platform', nargs='*', dest='platforms', default=['Win32'])
+    vcxproj_parser.add_argument('--ms-windows-target-platform', default=environ.get('UCRTVersion', '10.0.16299.0'))
+    vcxproj_parser.add_argument('--platform', nargs='*', dest='platforms', default=[platform for platform in environ.get('GENJUTSU_MSBUILD_PLATFORMS', '').split(',') if platform])
+    vcxproj_parser.add_argument('--linux', action='store_true', help='linux remote project')
     vcxproj_parser.add_argument('--use-ninja-extension', action='store_true', help='only work with VS professionnal')
     vcxproj_parser.add_argument('--ninja-extension-dir', type=Path, default=_RESOURCE_DIR)
     vcxproj_parser.add_argument('--ninja-exe', default=environ.get('NINJA', 'ninja.exe'), help='ninja executable (NINJA environment variable)')
@@ -105,6 +106,8 @@ def main(argv=None):  #pylint: disable=missing-docstring
     args = vars(parser.parse_args(argv))
     environ['GENJUTSU_TOOLSETS'] = args.pop('genjutsu_toolsets')
     environ['GENJUTSU_RESOURCE_PATH'] = args.pop('genjutsu_resource_path')
+    if not args['platforms']:
+        args['platforms'] = ['x64'] if args['linux'] else ['Win32', 'x64']
     args.pop('callback')(**args)
 
 

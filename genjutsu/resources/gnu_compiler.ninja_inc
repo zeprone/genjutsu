@@ -1,0 +1,11 @@
+rule cxx
+  description=compile $in
+  deps=gcc
+  depfile=$out.d
+  command=$CXX $CPPFLAGS $CFLAGS $CXXFLAGS -MMD -MF $out.d -c $in -o $out
+
+rule pch
+  description=compile PCH $in
+  pool=heavy_action_pool
+  depfile=$out.d
+  command=$CXX $CPPFLAGS $CFLAGS $CXXFLAGS -MD -MF $out.d -x c++-header $in -o $out

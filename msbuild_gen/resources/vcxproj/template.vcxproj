@@ -17,16 +17,27 @@
   </ItemGroup>
 
   <PropertyGroup Label="Globals">
+    <MinimumVisualStudioVersion>{{ ms_tools_version }}</MinimumVisualStudioVersion>
     <ProjectGuid>{{ '{' }}{{ project.guid }}{{ '}' }}</ProjectGuid>
+    {%- if linux %}
+    <ApplicationType>Linux</ApplicationType>
+    <ApplicationTypeRevision>1.0</ApplicationTypeRevision>
+    <TargetLinuxPlatform>Generic</TargetLinuxPlatform>
+    <LinuxProjectType>{FC1A4D80-50E9-41DA-9192-61C0DBAA00D2}</LinuxProjectType>
+    {%- else -%}
     <WindowsTargetPlatformVersion>{{ ms_windows_target_platform }}</WindowsTargetPlatformVersion>
+    {% endif -%}
   </PropertyGroup>
 
   <PropertyGroup Label="Configuration">
+    <!--UseDebugLibraries>true</UseDebugLibraries-->
     <ConfigurationType>Makefile</ConfigurationType>
     {%- if use_ninja_extension %}
     <UseDefaultPropertyPageSchemas Label="Import Settings">false</UseDefaultPropertyPageSchemas>
     {% endif -%}
+	{%- if not linux %}
     <PlatformToolset>{{ ms_toolset }}</PlatformToolset>
+	{% endif -%}
   </PropertyGroup>
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
@@ -53,8 +64,15 @@
   </ImportGroup>
   {% else -%}
   <PropertyGroup>
-    <NMakeBuildCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" $(Configuration)_msbuild_cookie"</NMakeBuildCommandLine>
-    <NMakeCleanCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}"" -t clean</NMakeCleanCommandLine>
+    {%- if linux %}
+    <BuildCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" $(Configuration)_msbuild_cookie</BuildCommandLine>
+    <CleanCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" -t clean</CleanCommandLine>
+    <RemoteBuildCommandLine>ninja -f "{{ project.ninja_file }}" $(Configuration)_msbuild_cookie</RemoteBuildCommandLine>
+    <RemoteCleanCommandLine>ninja -f "{{ project.ninja_file }}" -t clean</RemoteCleanCommandLine>
+    {%- else -%}
+    <NMakeBuildCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" $(Configuration)_msbuild_cookie</NMakeBuildCommandLine>
+    <NMakeCleanCommandLine>"{{ ninja_exe }}" -f "{{ project.ninja_file }}" -t clean</NMakeCleanCommandLine>
+    {% endif -%}
   </PropertyGroup>
   {%- endif %}
 

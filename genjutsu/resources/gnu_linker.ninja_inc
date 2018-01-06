@@ -1,0 +1,14 @@
+rule exe
+  description=link $out
+  pool=heavy_action_pool
+  command=$LD $LDFLAGS $in $LDLIBS -o $out
+
+rule lib
+  description=link $out
+  pool=heavy_action_pool
+  command=$LD --shared $LDFLAGS $in $LDLIBS -o $out
+
+rule ar
+  description=archive $out
+  pool=heavy_action_pool
+  command=$AR $ARFLAGS $out $in

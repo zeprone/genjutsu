@@ -1,14 +1,16 @@
-CXX=clang --std=c++14
+CXX=clang --std=c++17
 
-CPPFLAGS=$CPPFLAGS -DWIN32 -D_MT -DCRIPPLED -DDEBUG
+CPPFLAGS=$CPPFLAGS -DWIN32 -D_MT
+CPPFLAGS=$CPPFLAGS -DDEBUG
+CPPFLAGS=$CPPFLAGS -DCRIPPLED
 
 CFLAGS=$CFLAGS -Wall -Wextra
-CFLAGS=$CFLAGS -fno-ms-compatibility
+#CFLAGS=$CFLAGS -fno-ms-compatibility
 CFLAGS=$CFLAGS -ggdb3
 CXXFLAGS=-x c++ 
 
-LDFLAGS=$LDFLAGS -machine:x64 -nodefaultlib -subsystem:console $
- libucrt.lib libvcruntime.lib libcmt.lib libcpmt.lib $
- legacy_stdio_definitions.lib oldnames.lib $
- legacy_stdio_wide_specifiers.lib $
- kernel32.lib User32.lib
+#LDFLAGS=$LDFLAGS -machine:x64 -nodefaultlib -subsystem:console $
+# libucrt.lib libvcruntime.lib libcmt.lib libcpmt.lib $
+# legacy_stdio_definitions.lib oldnames.lib $
+# legacy_stdio_wide_specifiers.lib $
+# kernel32.lib User32.lib
