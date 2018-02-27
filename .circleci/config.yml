@@ -31,7 +31,8 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip3 install wheel
+            pip3 install wheel 
+            pip3 install pytest pytest-html pytest-cov pytest-pylint pytest-pep8 pprofile
 
       - run:
           name: build
