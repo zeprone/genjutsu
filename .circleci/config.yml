@@ -45,11 +45,12 @@ jobs:
             - ./venv
           key: v1-dependencies-{{ checksum "setup.cfg" }}
 
-      - run:
-          name: run tests
-          command: |
-            . venv/bin/activate
-            python3 setup.py test
+      # disabling tests
+      #- run:
+      #    name: run tests
+      #    command: |
+      #      . venv/bin/activate
+      #      python3 setup.py test
 
       - store_artifacts:
           path: test-reports
